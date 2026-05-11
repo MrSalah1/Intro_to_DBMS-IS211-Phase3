@@ -88,7 +88,11 @@ class WarehouseApp:
         # Facility & Section
         fac_frame, self.fac_entries = self.create_form(tab_admin, "Register Facility",
                                                        ["Facility ID", "Zone", "Climate"], 0, 0)
-        tk.Button(fac_frame, text="Insert Facility", command=self.insert_facility).grid(row=3, column=0, columnspan=2,
+        tk.Button(fac_frame, text="Insert Facility", command=self.insert_facility).grid(row=3, column=0, pady=5,
+                                                                                        sticky=tk.EW)
+        tk.Button(fac_frame, text="Update Climate", command=self.update_facility).grid(row=3, column=1, pady=5,
+                                                                                       sticky=tk.EW)
+        tk.Button(fac_frame, text="Delete Facility", command=self.delete_facility).grid(row=4, column=0, columnspan=2,
                                                                                         pady=5, sticky=tk.EW)
 
         sec_frame, self.sec_entries = self.create_form(tab_admin, "Register Section",
@@ -98,7 +102,10 @@ class WarehouseApp:
 
         # Clients & Staff
         cli_frame, self.cli_entries = self.create_form(tab_admin, "Register Client", ["Client ID", "Client Name"], 0, 1)
-        tk.Button(cli_frame, text="Insert Client", command=self.insert_client).grid(row=2, column=0, columnspan=2,
+        tk.Button(cli_frame, text="Insert Client", command=self.insert_client).grid(row=2, column=0, pady=5,
+                                                                                    sticky=tk.EW)
+        tk.Button(cli_frame, text="Update Name", command=self.update_client).grid(row=2, column=1, pady=5, sticky=tk.EW)
+        tk.Button(cli_frame, text="Delete Client", command=self.delete_client).grid(row=3, column=0, columnspan=2,
                                                                                     pady=5, sticky=tk.EW)
 
         emp_frame, self.emp_entries = self.create_form(tab_admin, "Register Employee", ["Employee ID", "Name"], 1, 1)
@@ -145,23 +152,26 @@ class WarehouseApp:
         btn_frame = tk.Frame(tab_reports, pady=10)
         btn_frame.pack(fill=tk.BOTH, expand=True)
 
-        tk.Button(btn_frame, text="1. Max Industry Group Agreements (Last Month)", command=self.inq_1, width=60).grid(
-            row=0, column=0, pady=2)
-        tk.Button(btn_frame, text="2. Products With No Storage/Movement (Last Month)", command=self.inq_2,
+        tk.Button(btn_frame, text="Simple Select (All Facilities)", command=self.view_facilities, width=60).grid(row=0,
+                                                                                                                 column=0,
+                                                                                                                 pady=2)
+        tk.Button(btn_frame, text="Complex Select (Client Totals with JOIN)", command=self.view_client_totals,
                   width=60).grid(row=1, column=0, pady=2)
-        tk.Button(btn_frame, text="3. Staff with Max Inventory Movements (Last Month)", command=self.inq_3,
-                  width=60).grid(row=2, column=0, pady=2)
-        tk.Button(btn_frame, text="4. Manufacturers with No Products Stored (Last Month)", command=self.inq_4,
+        tk.Button(btn_frame, text="1. Max Industry Group Agreements (Last Month)", command=self.inq_1, width=60).grid(
+            row=2, column=0, pady=2)
+        tk.Button(btn_frame, text="2. Products With No Storage/Movement (Last Month)", command=self.inq_2,
                   width=60).grid(row=3, column=0, pady=2)
-        tk.Button(btn_frame, text="5. Specific Products Stored at Each Facility (Last Month)", command=self.inq_5,
+        tk.Button(btn_frame, text="3. Staff with Max Inventory Movements (Last Month)", command=self.inq_3,
                   width=60).grid(row=4, column=0, pady=2)
-        tk.Button(btn_frame, text="6. Full Client Details & Total Items Stored", command=self.inq_6, width=60).grid(
-            row=5, column=0, pady=2)
-        tk.Button(btn_frame, text="* Bonus: Facility Capacity & Distribution by Industry", command=self.inq_bonus,
+        tk.Button(btn_frame, text="4. Manufacturers with No Products Stored (Last Month)", command=self.inq_4,
+                  width=60).grid(row=5, column=0, pady=2)
+        tk.Button(btn_frame, text="5. Specific Products Stored at Each Facility (Last Month)", command=self.inq_5,
                   width=60).grid(row=6, column=0, pady=2)
+        tk.Button(btn_frame, text="6. Full Client Details & Total Items Stored", command=self.inq_6, width=60).grid(
+            row=7, column=0, pady=2)
 
         tk.Button(btn_frame, text="Clear Data Grid", command=self.clear_grid, width=30, bg="#e74c3c", fg="white").grid(
-            row=7, column=0, pady=10)
+            row=8, column=0, pady=10)
 
         # ==========================================
         # BOTTOM GRID (Always visible)
@@ -210,6 +220,32 @@ class WarehouseApp:
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
+    def update_facility(self):
+        fid = self.fac_entries["Facility ID"].get()
+        climate = self.fac_entries["Climate"].get()
+        if not fid or not climate:
+            messagebox.showwarning("Input Error", "Please provide a Facility ID and the new Climate value.")
+            return
+        try:
+            self.db.execute_action("UPDATE FACILITY SET CLIMATE_CONTROL = ? WHERE FACILITY_ID = ?", (climate, fid))
+            messagebox.showinfo("Success", f"Updated Facility {fid} climate to '{climate}'.")
+            self.view_facilities()
+        except Exception as e:
+            messagebox.showerror("Update Error", str(e))
+
+    def delete_facility(self):
+        fid = self.fac_entries["Facility ID"].get()
+        if not fid:
+            messagebox.showwarning("Input Error", "Please provide a Facility ID to delete.")
+            return
+        try:
+            self.db.execute_action("DELETE FROM FACILITY WHERE FACILITY_ID = ?", (fid,))
+            messagebox.showinfo("Success", f"Deleted Facility {fid}.")
+            self.view_facilities()
+        except Exception as e:
+            messagebox.showerror("Delete Error",
+                                 f"Cannot delete Facility {fid} (Check if it has linked sections!)\n\nDetails: {str(e)}")
+
     def insert_section(self):
         data = [self.sec_entries[k].get() for k in ["Section ID", "Facility ID", "Section Code"]]
         try:
@@ -225,6 +261,32 @@ class WarehouseApp:
             messagebox.showinfo("Success", "Client Inserted!")
         except Exception as e:
             messagebox.showerror("Error", str(e))
+
+    def update_client(self):
+        cid = self.cli_entries["Client ID"].get()
+        cname = self.cli_entries["Client Name"].get()
+        if not cid or not cname:
+            messagebox.showwarning("Input Error", "Please provide a Client ID and the new Client Name.")
+            return
+        try:
+            self.db.execute_action("UPDATE CLIENT SET CLIENT_NAME = ? WHERE CLIENT_ID = ?", (cname, cid))
+            messagebox.showinfo("Success", f"Updated Client {cid} name to '{cname}'.")
+            self.view_client_totals()
+        except Exception as e:
+            messagebox.showerror("Update Error", str(e))
+
+    def delete_client(self):
+        cid = self.cli_entries["Client ID"].get()
+        if not cid:
+            messagebox.showwarning("Input Error", "Please provide a Client ID to delete.")
+            return
+        try:
+            self.db.execute_action("DELETE FROM CLIENT WHERE CLIENT_ID = ?", (cid,))
+            messagebox.showinfo("Success", f"Deleted Client {cid}.")
+            self.view_client_totals()
+        except Exception as e:
+            messagebox.showerror("Delete Error",
+                                 f"Cannot delete Client {cid} (Check if they have active storage agreements!)\n\nDetails: {str(e)}")
 
     def insert_employee(self):
         data = [self.emp_entries[k].get() for k in ["Employee ID", "Name"]]
@@ -382,19 +444,36 @@ class WarehouseApp:
         """
         self.run_query(query)
 
-    def inq_bonus(self):
-        # Additional: Monitoring facility capacity and product distribution by industry group
-        query = """
-        SELECT F.FACILITY_ID, F.ZONE, IG.GROUP_NAME, SUM(I.QUANTITY_STORED) as TotalItems
-        FROM FACILITY F
-        JOIN STORAGE_AGREEMENT SA ON F.FACILITY_ID = SA.FACILITY_ID
-        JOIN INCLUDES I ON SA.AGREEMENT_ID = I.AGREEMENT_ID
-        JOIN PRODUCT P ON I.PRODUCT_ID = P.PRODUCT_ID
-        JOIN INDUSTRY_GROUP IG ON P.GROUP_ID = IG.GROUP_ID
-        GROUP BY F.FACILITY_ID, F.ZONE, IG.GROUP_NAME
-        ORDER BY F.FACILITY_ID
-        """
-        self.run_query(query)
+    def view_facilities(self):
+        try:
+            query = "SELECT * FROM FACILITY ORDER BY FACILITY_ID"
+            cols, rows = self.db.fetch_data(query)
+            self.display_results(cols, rows)
+        except Exception as e:
+            messagebox.showerror("Query Error", str(e))
+
+    def view_client_totals(self):
+        try:
+            query = """
+            SELECT 
+                C.CLIENT_ID, 
+                C.CLIENT_NAME, 
+                SUM(I.QUANTITY_STORED) AS TOTAL_STORED_ITEMS
+            FROM 
+                CLIENT C
+            LEFT JOIN 
+                STORAGE_AGREEMENT SA ON C.CLIENT_ID = SA.CLIENT_ID
+            LEFT JOIN 
+                INCLUDES I ON SA.AGREEMENT_ID = I.AGREEMENT_ID
+            GROUP BY 
+                C.CLIENT_ID, C.CLIENT_NAME
+            ORDER BY 
+                C.CLIENT_ID
+            """
+            cols, rows = self.db.fetch_data(query)
+            self.display_results(cols, rows)
+        except Exception as e:
+            messagebox.showerror("Query Error", str(e))
 
 
 if __name__ == "__main__":
